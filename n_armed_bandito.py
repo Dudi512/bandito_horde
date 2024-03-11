@@ -41,12 +41,15 @@ class Casino:
             self.global_best_machine = machine_index
 
 def main():
+    print("Rozpoczynam symulację...")
+    
     N = 100
     M = 50
     Tmax = 10000  # Ustawiamy maksymalną liczbę kroków
     num_machines = N
     num_guests = M
 
+    print("Tworzę maszyny w kasynie...")
     f_prawdziwy = np.random.normal(0, 1, size=(num_guests, num_machines))
     a_ij = np.zeros((num_guests, num_machines))
     b_ij = np.zeros((num_guests, num_machines))
@@ -55,6 +58,7 @@ def main():
 
     t = 0  # Inicjalizujemy licznik kroków
     while t < Tmax:  # Warunek stopu - wykonuj pętlę dopóki liczba kroków jest mniejsza niż Tmax
+        print(f"Krok {t+1}/{Tmax}")
         for guest_id in range(num_guests):
             machine_index, reward = casino.play_guest(guest_id, f_prawdziwy)
             casino.update_beliefs(guest_id, machine_index, reward, a_ij, b_ij)
@@ -62,6 +66,7 @@ def main():
         t += 1  # Inkrementujemy licznik kroków
 
     global_best_machine_index = np.argmax(np.mean(a_ij, axis=0))
+    print("Symulacja zakończona.")
     print("Najlepsza maszyna do gry globalnie to:", global_best_machine_index)
 
 if __name__ == "__main__":
