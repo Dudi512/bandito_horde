@@ -12,43 +12,57 @@ class Casino:
     def __init__(self, num_machines):
         self.num_machines = num_machines
         self.bandit_machines = [BanditMachine(np.random.normal(0, 1), np.random.uniform(0.5, 1.5)) for _ in range(num_machines)]
+        self.global_best_machine = None
 
-    def ucb_select_machine(self, num_plays, num_trials):
-        ucb_values = np.zeros(self.num_machines)
+    def play_guest(self, guest_id, f_prawdziwy):
+        best_own_machine = None
+        best_global_machine = self.global_best_machine
 
         for i in range(self.num_machines):
-            mean = 0
-            if num_plays[i] > 0:
-                mean = num_trials[i] / num_plays[i]
-            uncertainty = np.sqrt(2 * np.log(sum(num_plays)) / num_plays[i])
-            ucb_values[i] = mean + uncertainty
+            if best_own_machine is None or f_prawdziwy[guest_id][i] > f_prawdziwy[guest_id][best_own_machine]:
+                best_own_machine = i
+            if best_global_machine is None or f_prawdziwy[guest_id][i] > f_prawdziwy[guest_id][best_global_machine]:
+                best_global_machine = i
 
-        return np.argmax(ucb_values)
+        machine_index = np.random.choice([best_own_machine, best_global_machine])
+        reward = self.bandit_machines[machine_index].play()
+
+        return machine_index, reward
+
+    def update_beliefs(self, guest_id, machine_index, reward, a_ij, b_ij):
+        a_ij[guest_id][machine_index] += reward
+        b_ij[guest_id][machine_index] += 1
+        self.update_global_best(machine_index)
+
+    def update_global_best(self, machine_index):
+        if self.global_best_machine is None:
+            self.global_best_machine = machine_index
+        elif self.bandit_machines[machine_index].mean > self.bandit_machines[self.global_best_machine].mean:
+            self.global_best_machine = machine_index
 
 def main():
     N = 100
     M = 50
+    Tmax = 10000  # Ustawiamy maksymalną liczbę kroków
     num_machines = N
     num_guests = M
-    num_plays = np.zeros(num_machines)
-    num_trials = np.zeros(num_machines)
+
+    f_prawdziwy = np.random.normal(0, 1, size=(num_guests, num_machines))
+    a_ij = np.zeros((num_guests, num_machines))
+    b_ij = np.zeros((num_guests, num_machines))
 
     casino = Casino(num_machines)
 
-    for guest in range(num_guests):
-        for i in range(num_machines):
-            reward = casino.bandit_machines[i].play()
-            num_plays[i] += 1
-            num_trials[i] += reward
+    t = 0  # Inicjalizujemy licznik kroków
+    while t < Tmax:  # Warunek stopu - wykonuj pętlę dopóki liczba kroków jest mniejsza niż Tmax
+        for guest_id in range(num_guests):
+            machine_index, reward = casino.play_guest(guest_id, f_prawdziwy)
+            casino.update_beliefs(guest_id, machine_index, reward, a_ij, b_ij)
+        
+        t += 1  # Inkrementujemy licznik kroków
 
-    for _ in range(1000):
-        machine_index = casino.ucb_select_machine(num_plays, num_trials)
-        reward = casino.bandit_machines[machine_index].play()
-        num_plays[machine_index] += 1
-        num_trials[machine_index] += reward
-
-    optimal_machine_index = np.argmax(num_trials / num_plays)
-    print("Najlepsza maszyna do gry to:", optimal_machine_index)
+    global_best_machine_index = np.argmax(np.mean(a_ij, axis=0))
+    print("Najlepsza maszyna do gry globalnie to:", global_best_machine_index)
 
 if __name__ == "__main__":
     main()
